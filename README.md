@@ -2,6 +2,11 @@
 
 Tiny (bootloader sized) program built for fun.
 
+## Dependencies
+
+- NASM - To compile assembly into machine code.
+- Qemu - If you want to run on emulated hardware. Alternatively, if you have a real floppy, you could write the bootloader and kernel to it and boot on real hardware! :D
+
 ## Commands
 
 - `make build` Compile assembly file into binary + write to virtual floppy disk.
