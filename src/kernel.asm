@@ -1,5 +1,5 @@
   BITS 16
-  ORG 8000h
+  ORG 0x1000
 
 jmp start
 
