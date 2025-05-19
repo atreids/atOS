@@ -1,49 +1,68 @@
-  BITS 16 ; BIOS 'real mode' is 16 bit
-  ORG 0x7C00 ; ORG sets 'start' memory location for all following moves
+    BITS 16       ; BIOS real mode is always 16bits
+    ORG 0x7C00        ; Bootloader will be placed by BIOS here in RAM
 
-jmp start
+    jmp start
 
-msg db 'Bootloader of AtomOS version 0.1a',  13, 10, 'Created by Aaron Donaldson', 13, 10, 'Booting...', 0
+    %include "print.asm"
+
+; ---------------------
+; Main bootloader
 
 start:
-  xor ax, ax ; Sets AX = 0
-  mov ds, ax ; Sets DS (data segment) = 0
-  cld;
-  add ax, 288
-  mov sp, 4096
+    cld
+    xor ax, ax        ; Sets AX = 0
+    mov ds, ax        ; Sets DS (data segment) = 0
+    mov ss, ax
+    mov sp, 0x7C00       ; Set stack below bootloader in memory.
 
-  mov si, msg
-  call print_string
+    mov si, init_msg       ; Print a debug string
+    call print_string
 
-  xor ax, ax
-  mov es, ax
-  mov fs, ax
-  mov gs, ax
+    mov ah, 0x02       ; INT 13h service, read disk sectors
+    mov ch, 0       ; Track num
+    mov cl, 2       ; Sector 2, sector 1 is this bootloader
+    mov dh, 0       ; Head Num
+    mov al, 1       ; Read 1 sector only
 
-  mov si, 8000h ;Kernel location
-  mov ah, 02h ; INT 13h service, read sectors
-  mov ch, 0
-  mov cl, 2 ;Sector 2, sector 1 is this bootloader
-  mov dh, 0
-  mov al, 1 ;Read 1 sector only
-  int 13h ;Read kernel from above params into RAM
+    mov ax, 0x1000
+    mov es, ax        ; ES:BX is where the read buffer will be placed in memory
+    mov bx, 0
 
-  jmp 8000h ;Pass control to kernel
+    int 13h       ; Read disk using above params
+    jc disk_error       ; Check if read error occurred
 
+    call read_success
 
-print_string:
-  mov ah, 0Eh ;BIOS.Teletype
-.repeat:
-  lodsb
-  cmp al, 0
-    je .done
-  int 10h
-  jmp .repeat
-.done
-  ret
+    jmp 0x1000        ; Pass control to kernel
 
+; -----------------------------
+; Subroutines
 
-;Pad file with 0s to 510 bytes, and then add bootloader signature of AA55 in last 2 bytes.
-;BIOS will not recongise this sector as the boot sector unless exactly 512 bytes ending in AA55
+disk_error:
+    mov si, general_disk_error_msg
+    call print_string
+    jmp $
+
+about_to_read:
+    mov si, about_to_read_msg
+    call print_string
+    ret
+
+read_success:
+    mov si, floppy_found
+    call print_string
+    ret
+
+; -----------------------------
+; Variables
+
+about_to_read_msg db 'Initiating disk read', 13, 10, 0
+general_disk_error_msg db 'Disk error', 13, 10,  0
+floppy_found db 'Kernel loaded, transferring...', 13, 10, 0
+init_msg db 'Bootloader of AtomOS version 0.1a',  13, 10, 'Created by Aaron Donaldson', 13, 10, 'Booting...', 13, 10, 0
+
+; -----------------------------
+; Buffer and signature
+
 times 510-($-$$) db 0
-dw 0xAA55
+dw 0xAA55       ; SIGNATURE
