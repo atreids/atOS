@@ -29,8 +29,14 @@ init_message:
     call print_string
     ret
 
+progress:
+    mov si, progress_msg
+    call print_string
+    ret
 
-calcRegsFromLogical: ;Given a logical sector is in AX, set correct registers for INT13h
+; This code comes from MikeOS. See LICENCE
+; Given a logical sector is in AX, set correct registers for INT13h
+calcRegsFromLogical:
     push bx
     push ax
 
@@ -60,13 +66,11 @@ calcRegsFromLogical: ;Given a logical sector is in AX, set correct registers for
 ; Variables
 
 bootdevice      db 0
-cluster         dw 0 ; On floppy clusters and sectors are the same 512bytes stretch
-pointer         dw 0 ; Pointer into to where kernel will exist in buffer
 
+progress_msg db "Step reached...", 13, 10, 0
 kernel_name db "KERNEL  BIN"
-about_to_read_msg db "Initiating disk read", 13, 10, 0
-general_disk_error_msg db "Disk error", 13, 10,  0
+general_disk_error_msg db "ERROR: INT13h error", 13, 10, 0
 floppy_found db "Kernel loaded, transferring...", 13, 10, 0
-init_msg db "Bootloader of AtomOS version 0.1a",  13, 10, "Created by Aaron Donaldson", 13, 10, "Booting...", 13, 10, 0
+init_msg db "Bootloader of AtomOS version 0.1a",  13, 10, "Created by Aaron Donaldson", 13, 10, "Initiating bootloader...", 13, 10, 0
 
 

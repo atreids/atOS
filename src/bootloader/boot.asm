@@ -1,6 +1,7 @@
     BITS 16       ; BIOS real mode is always 16bits
+    ORG 0x7C00
 
-    jmp short start
+    jmp short start ; These 2 lines are also actually important for this to be recognised as a real FAT filesystem
     nop
 
 ; ---------------------
@@ -8,7 +9,7 @@
 ; See https://wiki.osdev.org/FAT#BPB_(BIOS_Parameter_Block)
 ; Values match IBM 3.5" floppy.
 ;
-; Define series of bytes at start of file to make valid BPB
+; Define series of bytes at start of file to make valid BPB (which is part of the spec for FAT)
 ; We may redefine some of these variables later by reading the actual floppy inserted
 
 OEMLabel          db "ATOSBOOT" ; OEM Identifier (must be 8 bytes aka 8 chars)
@@ -35,19 +36,23 @@ FileSystem        db "FAT12"    ; File system type
 ; Main bootloader
 start:
     cld
-    mov ax, 0x7C00
-    mov ds, ax        ; Set data segment to where we are in memory: 7C00
-    mov ss, ax        ; Set stack segment to same place
+    xor ax, ax
+    mov ds, ax
+    mov ss, ax
     mov sp, 0x7C00      ; Set stack pointer below bootloader in memory. Generally safe place.
                         ; as stacks expand down in x86
     call init_message
 
     cmp dl, 0
       jne disk_error ; DL should contain drive number 0. If it doesn't lets just error
-                     ; See http://wiki.osdev.org/System_Initialization_(x86)#BIOS_initialization
+                          ; See http://wiki.osdev.org/System_Initialization_(x86)#BIOS_initialization
 
     ; Now we need to load the root directory
     mov ax, 19 ; in FAT12 root dir will start at logical sector 19
+               ; See https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system
+               ; But basically disk looks like [Reserved|FAT tables|Root Dir] so you just need the size of the reserved section + (number of FAT tables * size of sectors per table)
+               ; So in our case we have 1 reserved sector of 512, 2 FAT tables (2 for redundancy), and each table takes up 9 sectors
+               ; So 1 + 9 * 2 = 19! Therefore our root dir must start at logical sector 19
     call calcRegsFromLogical
 
     mov si, buffer
@@ -56,28 +61,63 @@ start:
     mov bx, si    ; Int13h + 02h will write to ES:BX aka segment:offset.
                   ; Result is buffer:7C00
     mov ah, 02h   ; Read
-    mov al, 14    ; Read 14 sectors (floppy)
+    mov al, 14    ; Read 14 sectors aka our whole root dir
 
-    pusha
+    ;pusha
     int 13h
-      jnc disk_error ; Oops our read failed. On a real system this sort of setup would not be acceptable. We would need to retry.
+      jc disk_error ; Oops our read failed. On a real system this sort of setup would not be acceptable. We would need to retry.
                      ; As real floppy disks commonly would fail to read the first few times as the disks warmed up.
-    popa
+    ;popa
+    
+    call progress 
 
     ; Root dir is now in buffer
-    ; We must search for our kernel file :)
+    ; We must search entries for our kernel file :)
     mov ax, ds
     mov es, ax
     mov di, buffer
 
-    mov cx, word [RootDirEntries] ; Move the contents of RootDirEntries (as 2bytes) into cx
-    mov ax, 0
+    mov cx, word [RootDirEntries] ; Move the contents of RootDirEntries (as 2bytes) into cx - Loop below relies on CX
+    xor ax, ax
 
-    xchg cx, dx ; swap cx and dx
+search_root_entries:
+    xchg cx, dx ; swap cx and dx so cx value not lost
     mov si, kernel_name ;Input string is our file name
     mov cx, 11 ; counter
-    rep cmpsb ; repeat cmpsb 11 times, comparing DI (our buffer) with SI (our kernel name) byte by byte. 11 times cuz that is the length of our kernel filename string
+    rep cmpsb ; repeat cmpsb 11 times, comparing DI (some value in our buffer) with SI (our kernel name) byte by byte. 11 times cuz that is the length of our kernel filename string
+      je found_kernel
+    
+    add ax, 32 ; Each entry in the root directory table is exactly 32bytes long
+    mov di, buffer
+    add di, ax
+    xchg dx, cx
+    loop search_root_entries
 
+    call disk_error; If we reach here the file is not found
+
+    ; The following sections are assuming the kernel does not span more than 1 cluster on the disk. If if it did, we would
+    ; Also need to read the FAT tables to find the other associated clusters.
+
+found_kernel:
+    call progress
+    mov ax, word [es:di+0x0f] ;ES=Buffer, di=11 offset, + 15 = 26 which is the byte that contains the 1st cluster containing our kernel
+
+    add ax, 31 ; The start of our cluster is the cluster number (in AX) + 31 as the boot, fats, and root dir take up the first 31 sectors/clusters)
+    call calcRegsFromLogical
+    call progress
+
+    mov ax, 0x2000
+    mov es, ax
+    mov bx, 0x0000
+    xor ax, ax
+    mov ah, 02h
+    mov al, 1
+
+    int 13h ; Read the cluster with the Kernel! Yippee
+      jc disk_error
+    mov dl, byte [bootdevice] ; Make sure the kernel knows the boot device number
+    call read_success
+    jmp 0x2000:0x0000 ; JUMP TO KERNEL! :D
 
 ; -----------------------------
 ; Buffer and signature
