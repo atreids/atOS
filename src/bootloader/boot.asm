@@ -68,8 +68,6 @@ start:
       jc disk_error ; Oops our read failed. On a real system this sort of setup would not be acceptable. We would need to retry.
                      ; As real floppy disks commonly would fail to read the first few times as the disks warmed up.
     ;popa
-    
-    call progress 
 
     ; Root dir is now in buffer
     ; We must search entries for our kernel file :)
@@ -99,12 +97,10 @@ search_root_entries:
     ; Also need to read the FAT tables to find the other associated clusters.
 
 found_kernel:
-    call progress
     mov ax, word [es:di+0x0f] ;ES=Buffer, di=11 offset, + 15 = 26 which is the byte that contains the 1st cluster containing our kernel
 
     add ax, 31 ; The start of our cluster is the cluster number (in AX) + 31 as the boot, fats, and root dir take up the first 31 sectors/clusters)
     call calcRegsFromLogical
-    call progress
 
     mov ax, 0x2000
     mov es, ax

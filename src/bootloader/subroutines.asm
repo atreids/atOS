@@ -29,10 +29,6 @@ init_message:
     call print_string
     ret
 
-progress:
-    mov si, progress_msg
-    call print_string
-    ret
 
 ; This code comes from MikeOS. See LICENCE
 ; Given a logical sector is in AX, set correct registers for INT13h
