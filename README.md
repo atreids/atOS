@@ -1,6 +1,8 @@
-# AtomOS
+# FAT12 Bootloader
 
-Tiny "operating system" made for fun.
+A tiny FAT12 filesystem bootloader made for fun.
+
+Note: this likely wouldn't work on a real floppy diskette as they are know to sometimes fail to read and this bootloader does not account for that.
 
 ## Dependencies
 
