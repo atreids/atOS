@@ -1,6 +1,6 @@
 # FAT12 Bootloader
 
-A tiny FAT12 filesystem bootloader made for fun.
+A tiny x86 assembly bootloader for the FAT12 filesystem made for fun.
 
 Note: this likely wouldn't work on a real floppy diskette as they are know to sometimes fail to read and this bootloader does not account for that.
 
