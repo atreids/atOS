@@ -1,6 +1,6 @@
 # AtomOS
 
-Tiny (bootloader sized) program built for fun.
+Tiny "operating system" made for fun.
 
 ## Dependencies
 
@@ -9,17 +9,14 @@ Tiny (bootloader sized) program built for fun.
 
 ## Commands
 
-- `make/make build` Compile assembly file into binary + write to virtual floppy disk.
+- `make/make build` Compile assembly files into binary + write to virtual floppy disk.
 - `make start` Start a virtual computer with floppy disk attached using Qemu.
 
-## Steps
+## Functionality
 
-1. Make tiny bootloader.
-2. Make tiny kernel.
-3. Use bootloader to load tiny kernel from another part of the disk.
-4. Hand control to kernel.
-5. Flesh out kernel:
-- - Print to screen
-- - Keyboard input
-- - Maybe some bare bones applications.
+Currently capabilities:
+
+- A bootloader which can find the kernel (or well, a file named `kernel.bin`) within the primary data region of the FAT12 filesystem and then load it into memory and transfer control to it.
+- A tiny kernel file which just prints a welcome message when control is transferred.
+
 
